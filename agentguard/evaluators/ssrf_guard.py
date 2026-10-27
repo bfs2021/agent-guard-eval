@@ -66,7 +66,8 @@ class SSRFAndExfiltrationGuard(BaseEvaluator):
             return
 
         scheme = (parsed.scheme or "").lower()
-        hostname = (parsed.hostname or "").lower()
+        # A final dot denotes an absolute DNS name and does not change its target.
+        hostname = (parsed.hostname or "").lower().removesuffix(".")
 
         # 1. Local file URI exfiltration
         if scheme == "file":
@@ -84,7 +85,7 @@ class SSRFAndExfiltrationGuard(BaseEvaluator):
             return
 
         # 2. Cloud Instance Metadata Service (IMDS) probes (AWS / GCP / Azure)
-        if hostname in self.METADATA_HOSTS or "169.254.169.254" in raw_url:
+        if hostname in self.METADATA_HOSTS:
             findings.append(
                 Finding(
                     rule_id="AG-004-B",
