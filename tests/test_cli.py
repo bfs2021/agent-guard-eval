@@ -120,3 +120,92 @@ def test_cli_sanitize(tmp_path):
     assert result.exit_code == 0
     assert clean_path.exists()
     assert "[REDACTED:AWS_ACCESS_KEY]" in clean_path.read_text(encoding="utf-8")
+
+
+FETCH_TRACE = """{
+    "session_id": "test-schema",
+    "agent_name": "agent",
+    "tool_calls": [
+        {"step_id": 1, "tool_name": "fetch", "arguments": {"url": "https://example.com"}}
+    ]
+}"""
+
+
+def test_cli_evaluate_rejects_non_object_schema_map(tmp_path):
+    trace_path = tmp_path / "trace.json"
+    schema_path = tmp_path / "schemas.json"
+    trace_path.write_text(FETCH_TRACE, encoding="utf-8")
+    schema_path.write_text('["fetch"]', encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["evaluate", str(trace_path), "--schema", str(schema_path)]
+    )
+    assert result.exit_code == 2
+    assert "Invalid schema file" in result.output
+    assert "JSON object" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_evaluate_rejects_scalar_schema_map(tmp_path):
+    trace_path = tmp_path / "trace.json"
+    schema_path = tmp_path / "schemas.json"
+    trace_path.write_text(FETCH_TRACE, encoding="utf-8")
+    schema_path.write_text('"fetch"', encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["evaluate", str(trace_path), "--schema", str(schema_path)]
+    )
+    assert result.exit_code == 2
+    assert "Invalid schema file" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_evaluate_rejects_non_object_tool_schema(tmp_path):
+    trace_path = tmp_path / "trace.json"
+    schema_path = tmp_path / "schemas.json"
+    trace_path.write_text(FETCH_TRACE, encoding="utf-8")
+    schema_path.write_text('{"fetch": 42}', encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["evaluate", str(trace_path), "--schema", str(schema_path)]
+    )
+    assert result.exit_code == 2
+    assert "Invalid schema file" in result.output
+    assert "'fetch'" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_cli_evaluate_rejects_invalid_tool_schema(tmp_path):
+    trace_path = tmp_path / "trace.json"
+    schema_path = tmp_path / "schemas.json"
+    trace_path.write_text(FETCH_TRACE, encoding="utf-8")
+    schema_path.write_text('{"fetch": {"type": 123}}', encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["evaluate", str(trace_path), "--schema", str(schema_path)]
+    )
+    assert result.exit_code == 2
+    assert "Invalid schema file" in result.output
+    assert "'fetch'" in result.output
+    assert "not a valid JSON Schema" in result.output
+
+
+def test_cli_evaluate_accepts_valid_schema_map(tmp_path):
+    trace_path = tmp_path / "trace.json"
+    schema_path = tmp_path / "schemas.json"
+    trace_path.write_text(FETCH_TRACE, encoding="utf-8")
+    schema_path.write_text(
+        '{"fetch": {"type": "object", "properties": {"url": {"type": "string"}}}}',
+        encoding="utf-8",
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["evaluate", str(trace_path), "--schema", str(schema_path)]
+    )
+    assert result.exit_code == 0
+    assert "PASSED" in result.output

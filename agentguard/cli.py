@@ -79,15 +79,24 @@ def evaluate_cmd(
         try:
             with open(schema_file, "r", encoding="utf-8") as f:
                 schemas = json.load(f)
-            # Find and configure schema validator
-            for ev in evaluators:
-                if isinstance(ev, SchemaValidator):
-                    ev.tool_schemas = schemas
-        except (OSError, json.JSONDecodeError, ValueError) as e:
+        except (OSError, json.JSONDecodeError) as e:
             click.secho(
                 f"Error reading schema file '{schema_file}': {e}", fg="red", err=True
             )
             sys.exit(2)
+
+        try:
+            SchemaValidator.validate_tool_schemas(schemas)
+        except ValueError as e:
+            click.secho(
+                f"Invalid schema file '{schema_file}': {e}", fg="red", err=True
+            )
+            sys.exit(2)
+
+        # Find and configure schema validator
+        for ev in evaluators:
+            if isinstance(ev, SchemaValidator):
+                ev.tool_schemas = schemas
 
     result = evaluate_trace(trace, evaluators)
 

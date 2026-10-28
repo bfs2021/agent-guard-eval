@@ -21,6 +21,38 @@ class SchemaValidator(BaseEvaluator):
         """
         self.tool_schemas = tool_schemas or {}
 
+    @staticmethod
+    def validate_tool_schemas(tool_schemas: Any) -> None:
+        """Reject schema maps that cannot be evaluated.
+
+        Args:
+            tool_schemas: The decoded contents of a schema file.
+
+        Raises:
+            ValueError: When the map is not a JSON object, when a tool name is
+                empty, or when a tool's definition is not a valid JSON Schema.
+        """
+        if not isinstance(tool_schemas, dict):
+            raise ValueError(
+                "expected a JSON object mapping tool names to JSON Schemas, "
+                f"got {type(tool_schemas).__name__}"
+            )
+        for tool_name, schema in tool_schemas.items():
+            if not isinstance(tool_name, str) or not tool_name:
+                raise ValueError(f"tool name {tool_name!r} is not a non-empty string")
+            if not isinstance(schema, (dict, bool)):
+                raise ValueError(
+                    f"schema for tool '{tool_name}' must be a JSON object, "
+                    f"got {type(schema).__name__}"
+                )
+            try:
+                jsonschema.Draft7Validator.check_schema(schema)
+            except jsonschema.exceptions.SchemaError as exc:
+                raise ValueError(
+                    f"schema for tool '{tool_name}' is not a valid JSON Schema: "
+                    f"{exc.message}"
+                ) from exc
+
     def register_schema(self, tool_name: str, schema: dict[str, Any]) -> None:
         """Register a JSON schema definition for a tool."""
         self.tool_schemas[tool_name] = schema
