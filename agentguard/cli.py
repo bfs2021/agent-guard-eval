@@ -79,7 +79,7 @@ def evaluate_cmd(
         try:
             with open(schema_file, "r", encoding="utf-8") as f:
                 schemas = json.load(f)
-        except (OSError, json.JSONDecodeError) as e:
+        except (OSError, json.JSONDecodeError, UnicodeError) as e:
             click.secho(
                 f"Error reading schema file '{schema_file}': {e}", fg="red", err=True
             )
@@ -87,7 +87,7 @@ def evaluate_cmd(
 
         try:
             SchemaValidator.validate_tool_schemas(schemas)
-        except ValueError as e:
+        except (TypeError, ValueError) as e:
             click.secho(
                 f"Invalid schema file '{schema_file}': {e}", fg="red", err=True
             )

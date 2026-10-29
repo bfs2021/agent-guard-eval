@@ -29,11 +29,13 @@ class SchemaValidator(BaseEvaluator):
             tool_schemas: The decoded contents of a schema file.
 
         Raises:
-            ValueError: When the map is not a JSON object, when a tool name is
-                empty, or when a tool's definition is not a valid JSON Schema.
+            TypeError: When the map is not a JSON object or a tool's definition
+                is neither a JSON object nor a boolean.
+            ValueError: When a tool name is empty, or when a tool's definition
+                is not a valid JSON Schema.
         """
         if not isinstance(tool_schemas, dict):
-            raise ValueError(
+            raise TypeError(
                 "expected a JSON object mapping tool names to JSON Schemas, "
                 f"got {type(tool_schemas).__name__}"
             )
@@ -41,7 +43,7 @@ class SchemaValidator(BaseEvaluator):
             if not isinstance(tool_name, str) or not tool_name:
                 raise ValueError(f"tool name {tool_name!r} is not a non-empty string")
             if not isinstance(schema, (dict, bool)):
-                raise ValueError(
+                raise TypeError(
                     f"schema for tool '{tool_name}' must be a JSON object, "
                     f"got {type(schema).__name__}"
                 )

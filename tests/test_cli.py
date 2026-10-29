@@ -194,6 +194,22 @@ def test_cli_evaluate_rejects_invalid_tool_schema(tmp_path):
     assert "not a valid JSON Schema" in result.output
 
 
+def test_cli_evaluate_reports_undecodable_schema_file(tmp_path):
+    trace_path = tmp_path / "trace.json"
+    schema_path = tmp_path / "schemas.json"
+    trace_path.write_text(FETCH_TRACE, encoding="utf-8")
+    schema_path.write_bytes(b'{"fetch": "\xff\xfe"}')
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["evaluate", str(trace_path), "--schema", str(schema_path)]
+    )
+    assert result.exit_code == 2
+    assert "Error reading schema file" in result.output
+    assert str(schema_path) in result.output
+    assert "Traceback" not in result.output
+
+
 def test_cli_evaluate_accepts_valid_schema_map(tmp_path):
     trace_path = tmp_path / "trace.json"
     schema_path = tmp_path / "schemas.json"
